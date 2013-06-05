@@ -1,0 +1,47 @@
+		`ORG 0
+		
+		MOVE 10000, R7
+		MOVE 0D, R2
+		MOVE BLOK, R3
+		MOVE 0, R6
+		
+LOOP	LOADB R4, (R3)
+			PUSH R4
+			CALL PAR
+			ADD R7, 4, R7
+			
+			CMP R4, R0
+			
+			JR_EQ CONT
+				STOREB R0, (R3)
+				ADD R6, 1, R6
+CONT		ADD R3, 1, R3
+			SUB R2, 1, R2
+		JR_NZ LOOP
+		
+		HALT
+		
+BLOK 	DB 1, 0, 0E, 0B, 36, 0F2, 3, 2, 0FE, 0F8, 7E, 8F
+
+; /*** potprogram PAR ***/
+
+PAR		PUSH R2
+		PUSH R3
+		LOADB R0, (R7+0C)
+		MOVE 8, R2
+		MOVE 0, R3
+		
+LOOP_1	ROTR R0, 1, R0
+			JR_NC CONT_1
+				XOR R3, 1, R3
+CONT_1		SUB R2, 1, R2
+		JR_NZ LOOP_1
+		
+		ROTL R0, 8, R0
+		
+		OR R3, R3, R3
+		JR_Z FINISH
+			XOR R0, 80, R0
+FINISH	POP R3
+		POP R2
+		RET
