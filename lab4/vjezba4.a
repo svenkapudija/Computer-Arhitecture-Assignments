@@ -1,0 +1,56 @@
+BVJ1		`EQU 0FFFFFFFC
+
+CT_LR		`EQU 0FFFF0000
+CT_CR		`EQU 0FFFF0004
+CT_CLR		`EQU 0FFFF0008
+CT_END		`EQU 0FFFF000C
+
+DMA_SRC		`EQU 0FFFF1000
+DMA_DEST	`EQU 0FFFF1004
+DMA_SIZE	`EQU 0FFFF1005
+DMA_CTRL	`EQU 0FFFF100C
+DMA_START	`EQU 0FFFF1010
+DMA_IACK	`EQU 0FFFF1014
+
+		`ORG 0
+		
+		; inicijalizacija DMA-sklopa
+		MOVE %D 1000, R0		; 100 mikro-sekundi, 10 Mhz -> 1000 impulsa
+		STORE R0, (CT_CR)
+		
+		MOVE %B 10, R0			; broji, bez prekida
+		STORE R0, (CT_CR)
+		
+		MOVE 01F0, R3			; spremi prvu adresu izvora
+		MOVE %D 10, R4			; brojac blokova
+		
+CT		LOAD R0, (CT_CR)		; cekanje CT-a
+		OR R0, R0, R0
+		JR_Z CT
+		
+		STORE R0, (CT_CLR)		; brisanje bistabila stanja
+		STORE R0, (CT_END)		; kraj posluzivanja
+		
+		MOVE BVJ1, R0
+		STORE R0, (DMA_SRC)		; u SRC je sada adresa izvora
+		STORE R3, (DMA_DEST)	; u DEST je sada adresa odredista
+		MOVE %D 10, R0			; kolicina podataka koju prenosi
+		STORE R0, (DMA_SIZE)
+		MOVE %B 0110, R0		; iz VJ u mem, krada ciklusa, no int
+		STORE R0, (DMA_CTRL)
+		STORE R0, (DMA_START)	; pokreni DMA
+		
+DMA		LOAD R0, (DMA_CTRL)		; provjeri stanje
+		OR R0, R0, R0
+		JR_Z DMA
+		
+		; prijenos gotov
+		STORE R0, (DMA_IACK)
+		ADD R3, %D 40, R3
+		
+		SUB R4, 1, R4
+		JR_NZ CT
+	
+KRAJ	MOVE %B 00, R0
+		STORE R0, (CT_CR)		; zaustavi CT
+		HALT

@@ -1,0 +1,82 @@
+BVJ1		`EQU 0FFFF1000		; prijenos podataka
+		
+UVJ2POD		`EQU 0FFFF2000		; prijenos podataka
+UVJ2STAT	`EQU 0FFFF2004		; ispitivanje i brisanje bistabila
+		
+PVJ3POD		`EQU 0FFFF3000		; prijenos podataka
+PVJ3IACK	`EQU 0FFFF3004		; dojava prihvata prekida i ispitivanje stanja
+PVJ3END		`EQU 0FFFF3008		; dojava kraja posluzivanja
+PVJ3STOP	`EQU 0FFFF300C		; omogucavanje/zabranjivanje postavljanja prekida
+		
+		`ORG 0
+		MOVE 1000, SP
+		JR GLAVNI
+		
+		`ORG 8
+		DW 500
+		
+GLAVNI	MOVE %B 10010000, SR	; dozvoli INT0
+		MOVE 1, R0
+		STORE R0, (PVJ3STOP)	; omoguci postavljanje prekida
+		
+PETLJA	LOAD R0, (UVJ2STAT)		; provjerava spremnost
+		OR R0, R0, R0
+		JR_Z PETLJA
+		
+		LOAD R5, (BROJ)			; u R5 se nalazi BROJ
+		STORE R5, (UVJ2POD)		; posalji broj n a UVJ2
+		STORE R5, (UVJ2STAT)	; salji bilo sto
+		
+		LOAD R6, (BROJPOD)
+		ADD R6, 1, R6
+		STORE R6, (BROJPOD)		; pospremi povecani broj
+		
+		JR PETLJA
+
+OBRADI	PUSH R3
+		MOVE SR, R3
+		PUSH R3
+		
+		MOVE 1, R0
+		LOAD R3, (SP+0C)		; u R3 se sada nalazi onaj podatak sa BVJ
+		
+		SHL R0, R3, R0			; potenciraj
+		
+		POP R3
+		MOVE R3, SR
+		POP R3
+		
+		RET
+		
+KRAJ	MOVE 0, R0
+		STORE R0, (PVJ3STOP)
+		HALT
+		
+BROJ 	DW 0
+BROJPOD	DW 0
+
+		`ORG 500
+		
+PREKID	PUSH R1
+		MOVE SR, R1
+		PUSH R1
+		
+		STORE R1, (PVJ3IACK)	; prihvat prekida, saljemo bilo sto
+		
+		LOAD R1, (BVJ1)			; cita 2k podataka s BVJ u R1
+		OR R1, R1, R1			; provjera je li broj negativan
+		JR_N KRAJ				; ako je, zabrani prekide i zaustavi program
+		
+		PUSH R1
+		CALL OBRADI
+		ADD SP, 4, SP
+		STORE R0, (BROJ)
+		LOAD R0, (BROJPOD)
+		STORE R0, (PVJ3POD)		; posalji na VJ3 broj podataka
+		
+		POP R1
+		MOVE R1, SR
+		POP R1
+		STORE R0, (PVJ3END)
+		RETI
+
